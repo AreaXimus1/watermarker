@@ -3,12 +3,38 @@ import os
 import cv2
 
 
-def watermark_transparency():
+def custom_dir_input():
 
-    dir = "images/watermark/"
+    custom_dir = input(
+        "Please enter the file path of your image.\n"
+        "Remember to include the file extension, e.g. .png or .jpg.\n"
+        "> "
+        )
 
-    # finds the name of the first image in the watermark folder
-    file = dir + os.listdir('images/watermark')[0]
+    try:
+        custom_dir.split(".")[1] 
+    except IndexError:
+        print("Error: please include the file extension.")
+        return custom_dir_input()
+    try:
+        with open(custom_dir):
+            pass
+    except FileNotFoundError:
+        print("File Not Found Error")
+        return custom_dir_input()
+
+    return custom_dir
+
+
+def watermark_transparency(custom_dir):
+
+    if custom_dir == None:
+        dir = "images/watermark/"
+        # finds the name of the first image in the watermark folder
+        file = dir + os.listdir('images/watermark')[0]
+    else:
+        file = custom_dir
+
 
     img = cv2.imread(file, cv2.IMREAD_UNCHANGED)
 
@@ -19,11 +45,14 @@ def watermark_transparency():
     cv2.imwrite("images/trans_image.png", bgra)
 
 
-def overlay_watermark():
+def overlay_watermark(custom_dir):
 
-    dir = "images/background_image/"
-
-    background = dir + os.listdir("images/background_image")[0]
+    if custom_dir == None:
+        dir = "images/background_image/"
+        background = dir + os.listdir("images/background_image")[0]
+    else:
+        background = custom_dir
+        
     background = cv2.imread(background)
     watermark = cv2.imread("images/trans_image.png", -1)
 
@@ -85,10 +114,14 @@ def overlay_watermark():
 watermark_transparency()
 overlay_watermark()
 
+'''EASY'''
 # TODO add ability to specify picture paths
-
-# TODO add ability to choose watermark size as % of total image
-
 # TODO add ability to choose where on image the watermark is
 
+'''MEDIUM'''
+# TODO add ability to choose watermark size as % of total image
+# TODO add ability to adjust how invisible the watermark is 
+
+'''HARD'''
 # TODO user can either "save" or "retry"
+
