@@ -89,7 +89,8 @@ def overlay_watermark(custom_dir, watermark_position, watermark_size):
     # if back > water , water needs to be stretched vertically (trimmed horizontally)
     # if back < water, water needs to be stretched horizontally (trimmed vertically)
 
-    # maybe need to adjust for watermark resize = 0 to account for dividing by zero
+    if watermark_size == 0:
+        watermark_size = 1
 
     watermark_resize = watermark_size / 100
 
@@ -226,6 +227,6 @@ while retry:
         retry = False
         print(
             "The image is saved in the images folder in the project directory"
-            " as 'complete_image.png."
+            " as 'complete_image.png'."
         )
         cv2.imwrite("images/complete_image.png", complete_image)
