@@ -10,8 +10,8 @@ def custom_dir_input(watermark):
     else:
         name = "background"
     print(
-        f"Have you put the **{name}** image ./images/{name}/ or do you want to "
-        "specify a custom directory?"
+        f"\nHave you put the **{name}** image ./images/{name}/ or do you want"
+        " to specify a custom directory?"
         "\nRespond with '1' or '2'.\n"
         f"Option 1: ./images/{name}\n"
         "Option 2: custom directory"
@@ -30,13 +30,13 @@ def custom_dir_input(watermark):
         custom_dir.split(".")[1]
     except IndexError:
         print("Error: please include the file extension.")
-        return custom_dir_input()
+        return custom_dir_input(watermark)
     try:
         with open(custom_dir):
             pass
     except FileNotFoundError:
         print("File Not Found Error")
-        return custom_dir_input()
+        return custom_dir_input(watermark)
 
     return custom_dir
 
@@ -64,7 +64,7 @@ def watermark_transparency(custom_dir, watermark_opaqueness):
     cv2.imwrite("images/trans_image.png", bgra)
 
 
-def overlay_watermark(custom_dir, watermark_position):
+def overlay_watermark(custom_dir, watermark_position, watermark_size):
 
     if custom_dir == None:
         dir = "images/background/"
@@ -78,19 +78,32 @@ def overlay_watermark(custom_dir, watermark_position):
     back_height, back_width, x = background.shape
     watermark_height, watermark_width, x = watermark.shape
 
-    # whichever axis is larger will get resized to half the background's axis
-    if watermark_height > watermark_width:
-        half_back_size = (back_height / watermark_height) / 2
-        resized_watermark = cv2.resize(
-            watermark, (0, 0), fx=half_back_size, fy=half_back_size
-        )
-    else:
-        half_back_size = (back_width / watermark_width) / 2
-        resized_watermark = cv2.resize(
-            watermark, (0, 0), fx=half_back_size, fy=half_back_size
-        )
+    background_width_over_height = back_width / back_height
+    watermark_width_over_height = watermark_width / watermark_height
+    # if back > water , water needs to be stretched vertically (trimmed horizontally)
+    # if back < water, water needs to be stretched horizontally (trimmed vertically)
 
-    watermark_height, watermark_width, x = resized_watermark.shape
+    # maybe need to adjust for watermark resize = 0 to account for dividing by zero
+
+    watermark_resize = watermark_size / 100
+
+    if background_width_over_height < watermark_width_over_height:
+        water_resize = (back_height / watermark_height) * watermark_resize
+    else:
+        water_resize = (back_width / watermark_width) * watermark_resize
+    watermark = cv2.resize(
+        watermark, (0, 0), fx=water_resize, fy=water_resize
+    )
+
+    watermark_height, watermark_width, x = watermark.shape
+
+    # cropping watermark if it extends beyond edge of background
+
+    if watermark_width > back_width:
+        watermark = watermark[0: watermark_height, 0: back_width]
+    elif watermark_height > back_height:
+        watermark = watermark[0: watermark_width, 0: back_height - 1]
+    watermark_height, watermark_width, x = watermark.shape
 
     # offsets
     width_centre = int(back_width / 2 - watermark_width / 2)
@@ -136,45 +149,77 @@ def overlay_watermark(custom_dir, watermark_position):
     elif watermark_position == "bottom right":
         x_offset, y_offset = bottom_right
 
-    y1, y2 = y_offset, y_offset + resized_watermark.shape[0]
-    x1, x2 = x_offset, x_offset + resized_watermark.shape[1]
+    y1, y2 = y_offset, y_offset + watermark.shape[0]
+    x1, x2 = x_offset, x_offset + watermark.shape[1]
 
-    alpha_water = resized_watermark[:, :, 3] / 255
+    alpha_water = watermark[:, :, 3] / 255
     alpha_back = 1 - alpha_water
 
     for c in range(0, 3):
-        background[y1:y2, x1:x2, c] = (alpha_water * resized_watermark[:, :, c] +
-                                       alpha_back * background[y1:y2, x1:x2, c])
+        background[y1:y2, x1:x2, c] = (
+            alpha_water * watermark[:, :, c] +
+            alpha_back * background[y1:y2, x1:x2, c]
+        )
 
-    resized_background = cv2.resize(background, (0, 0), fx=0.10, fy=0.10)
-
-    cv2.imshow("image", resized_background)
+    cv2.imshow("image", background)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
-watermark_dir = custom_dir_input(watermark=True)
-background_dir = custom_dir_input(watermark=False)
-
-watermark_position = input(
-    "Where on the image do you want the watermark?\n"
-    "Options:\ntop left, top centre, top right,\middle left, middle centre, middle right "
-    "right,\nbottom left, bottom centre, bottom right\n"
-    "Please ensure your spelling is exact.\n"
-    "> "
-)
-watermark_opaqueness = int(input(
-    "How opaque do you want the watermark to be? 100 = opaque, 0 = transparent"
-    "\n> "
-))
-
-watermark_transparency(watermark_dir, watermark_opaqueness)
-overlay_watermark(background_dir, watermark_position)
+    return background
 
 
-'''MEDIUM'''
-# TODO add ability to choose watermark size as % of total image
+retry = True
 
-'''HARD'''
-# TODO user can either "save" or "retry"
-# TODO if FileNotFound, write a "did you mean x" function with a yes/no option.
+while retry:
+    watermark_dir = custom_dir_input(watermark=True)
+    background_dir = custom_dir_input(watermark=False)
+
+    watermark_position = input(
+        "Where on the image do you want the watermark?\n"
+        "Options:\n"
+        "top left, top centre, top right,\n"
+        "middle left, middle centre, middle right\n"
+        "bottom left, bottom centre, bottom right\n"
+        "Please ensure your spelling is exact.\n"
+        "> "
+    )
+    watermark_opaqueness = int(input(
+        "How opaque do you want the watermark to be? 100 = opaque, 0 = "
+        "transparent"
+        "\n> "
+    ))
+    watermark_size = int(input(
+        "How much of the background do you want the watermark to cover? "
+        "0 = none, 100 = all.\n"
+        "Note: the watermark may be cropped to reach larger background"
+        " coverages."
+        "\n> "
+    ))
+    # watermark_position = "centre"
+    # watermark_opaqueness = 50
+    # watermark_size = 100
+
+    print(
+        "Your image will appear in a pop-up window. It may be behind this "
+        "window."
+        "\nIt also may be bigger than your monitor, depending on the photo's "
+        "resolution.\n"
+        "Close the window to continue."
+    )
+
+    watermark_transparency(watermark_dir, watermark_opaqueness)
+    complete_image = overlay_watermark(
+        background_dir, watermark_position, watermark_size
+    )
+
+    retry = input("Do you want to keep this image or retry? keep/retry\n> ")
+
+    if retry == "retry":
+        pass
+    else:
+        retry = False
+        print(
+            "The image is saved in the images folder in the project directory"
+            " as 'complete_image.png."
+        )
+        cv2.imwrite("images/complete_image.png", complete_image)
