@@ -27,15 +27,21 @@ def custom_dir_input(watermark):
     )
 
     try:
-        custom_dir.split(".")[1]
+        valid_extensions = ["jpg", "png", "jpeg"]
+        extension = custom_dir.split(".")[1]
+        if extension not in valid_extensions:
+            print("\nError: please submit either a jpg or a png")
+            return custom_dir_input(watermark)
+
     except IndexError:
-        print("Error: please include the file extension.")
+        print("\nError: please include the file extension.")
         return custom_dir_input(watermark)
+
     try:
         with open(custom_dir):
             pass
     except FileNotFoundError:
-        print("File Not Found Error")
+        print("\nFile Not Found Error")
         return custom_dir_input(watermark)
 
     return custom_dir
